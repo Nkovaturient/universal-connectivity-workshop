@@ -41,12 +41,11 @@ async function main() {
     console.error("Node error:", evt.detail);
   });
 
-  console.log(`relay,${node.peerId.toString()},started`);
-
+  console.log(`PeerId: ${node.peerId.toString()}`);
+  console.log(`Node started with id ${node.peerId.toString()}`);
+  console.log("Listening on:");
   const multiaddrs = node.getMultiaddrs();
-  multiaddrs.forEach((ma) => {
-    console.log(`relay,${ma.toString()},listening`);
-  });
+  multiaddrs.forEach((ma) => console.log(ma.toString()));
 
   // Write to relay.log for verification
   const logData = [
