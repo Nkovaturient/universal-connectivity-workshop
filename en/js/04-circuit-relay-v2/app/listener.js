@@ -6,9 +6,7 @@ import { webSockets } from "@libp2p/websockets";
 import { createLibp2p } from "libp2p";
 import { multiaddr } from "@multiformats/multiaddr";
 import { tcp } from "@libp2p/tcp";
-import fs from "fs";
 
-// Get relay address from command line arguments (like lesson 02)
 const relayAddr = process.argv[2];
 if (!relayAddr) {
   throw new Error("Relay address must be provided as command line argument");
@@ -30,7 +28,6 @@ console.log(`Node started with id ${node.peerId.toString()}`);
 const conn = await node.dial(multiaddr(relayAddr));
 console.log(`Connected to the relay ${conn.remotePeer.toString()}`);
 
-// Wait for connection and relay to be bind for the example purpose
 node.addEventListener("self:peer:update", (evt) => {
   const relayAddresses = node
     .getMultiaddrs()
@@ -39,15 +36,6 @@ node.addEventListener("self:peer:update", (evt) => {
     console.log(
       `Advertising with a relay address of ${relayAddresses[0].toString()}`
     );
-
-    // Write to log file for verification
-    const logData = [
-      `Node started with id ${node.peerId.toString()}`,
-      `Connected to the relay ${conn.remotePeer.toString()}`,
-      `Advertising with a relay address of ${relayAddresses[0].toString()}`,
-    ].join("\n");
-
-    fs.writeFileSync("./listener.log", logData);
   }
 });
 

@@ -106,8 +106,10 @@ async function main() {
     // Get relay multiaddr
     const relayMultiaddr = await getRelayMultiaddr();
 
-    // Start listener
-    const listenerProcess = execAsync(`node listener.js "${relayMultiaddr}"`);
+    // Start listener and capture its output
+    const listenerProcess = execAsync(
+      `node listener.js "${relayMultiaddr}" > /app/listener.log 2>&1`
+    );
     listenerProcess.catch(() => {}); // Ignore errors
 
     await sleep(8000);
@@ -118,7 +120,10 @@ async function main() {
     // Log the essential circuit relay address
     console.log(`Advertising with a relay address of ${listenerRelayAddr}`);
 
-    await execAsync(`node dialer.js "${listenerRelayAddr}"`);
+    // Start dialer and capture its output
+    await execAsync(
+      `node dialer.js "${listenerRelayAddr}" > /app/dialer.log 2>&1`
+    );
 
     // Validate all logs
     const logFiles = ["/app/relay.log", "/app/listener.log", "/app/dialer.log"];

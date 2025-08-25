@@ -78,10 +78,11 @@ async function createNode() {
   );
   const derivedPeerId = peerIdFromPrivateKey(privateKey);
   console.log("PeerId:", derivedPeerId.toString());
+
   const node = await createLibp2p({
     privateKey,
     addresses: {
-      listen: ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"],
+      listen: ["/ip4/0.0.0.0/tcp/4001", "/ip4/0.0.0.0/tcp/4002/ws"],
     },
     transports: [tcp(), webSockets()],
     connectionEncrypters: [noise()],
@@ -102,12 +103,21 @@ async function main() {
     console.error("Node error:", evt.detail);
   });
 
+  console.log(`PeerId: ${node.peerId.toString()}`);
   console.log(`Node started with id ${node.peerId.toString()}`);
   console.log("Listening on:");
-  node.getMultiaddrs().forEach((ma) => console.log(ma.toString()));
+  const multiaddrs = node.getMultiaddrs();
+  multiaddrs.forEach((ma) => console.log(ma.toString()));
+
+  // Keep the node running
+  process.on("SIGTERM", async () => {
+    console.log("Shutting down relay node...");
+    await node.stop();
+  });
 }
 
 main().catch(console.error);
+
 ```
 
 #### **listener.js**
@@ -122,9 +132,9 @@ import { createLibp2p } from "libp2p";
 import { multiaddr } from "@multiformats/multiaddr";
 import { tcp } from "@libp2p/tcp";
 
-const relayAddr = "<REPLACE_WITH_RELAY_MULTIADDR>"; // e.g. /ip4/127.0.0.1/tcp/15003/p2p/<RelayPeerId>;
+const relayAddr = process.argv[2];
 if (!relayAddr) {
-  throw new Error("the relay address needs to be specified as a parameter");
+  throw new Error("Relay address must be provided as command line argument");
 }
 
 const node = await createLibp2p({
@@ -140,15 +150,26 @@ const node = await createLibp2p({
 });
 
 console.log(`Node started with id ${node.peerId.toString()}`);
-const conn = await node.dial(relayAddr);
+const conn = await node.dial(multiaddr(relayAddr));
 console.log(`Connected to the relay ${conn.remotePeer.toString()}`);
 
-// Wait for connection and relay to be bind for the example purpose
 node.addEventListener("self:peer:update", (evt) => {
-  console.log(
-    `Advertising with a relay address of ${node.getMultiaddrs()[0].toString()}`
-  );
+  const relayAddresses = node
+    .getMultiaddrs()
+    .filter((ma) => ma.toString().includes("/p2p-circuit/"));
+  if (relayAddresses.length > 0) {
+    console.log(
+      `Advertising with a relay address of ${relayAddresses[0].toString()}`
+    );
+  }
 });
+
+// Keep the node running
+process.on("SIGTERM", async () => {
+  console.log("Shutting down listener node...");
+  await node.stop();
+});
+
 ```
 
 #### **dialer.js**
@@ -163,31 +184,49 @@ import { webSockets } from "@libp2p/websockets";
 import { circuitRelayTransport } from "@libp2p/circuit-relay-v2";
 import { identify } from "@libp2p/identify";
 
-const LISTENER_RELAY_ADDR = "<REPLACE_WITH_LISTENER_RELAY_ADDR>"; // e.g. /ip4/127.0.0.1/tcp/15003/p2p/<RelayPeerId>/p2p-circuit/p2p/<ListenerPeerId>
+const LISTENER_RELAY_ADDR = process.argv[2];
+if (!LISTENER_RELAY_ADDR) {
+  throw new Error(
+    "Listener relay address must be provided as command line argument"
+  );
+}
 
 const main = async () => {
-  const node = await createLibp2p({
-    addresses: { listen: [] },
-    transports: [tcp(), webSockets(), circuitRelayTransport()],
-    connectionEncrypters: [noise()],
-    streamMuxers: [yamux()],
-    services: {
-      identify: identify(),
-    },
-  });
-  await node.start();
-  console.log(`Node started with id ${node.peerId.toString()}`);
   try {
-    await node.dial(LISTENER_RELAY_ADDR);
-    console.log(
-      `Connected to the listener node via ${LISTENER_RELAY_ADDR[0].toString()}`
-    );
-    console.log("DIAL SUCCESS");
+    const node = await createLibp2p({
+      addresses: { listen: [] },
+      transports: [tcp(), webSockets(), circuitRelayTransport()],
+      connectionEncrypters: [noise()],
+      streamMuxers: [yamux()],
+      services: {
+        identify: identify(),
+      },
+    });
+
+    await node.start();
+    console.log(`Node started with id ${node.peerId.toString()}`);
+
+    try {
+      await node.dial(multiaddr(LISTENER_RELAY_ADDR));
+      console.log(`Connected to the listener node via ${LISTENER_RELAY_ADDR}`);
+      console.log("DIAL SUCCESS");
+    } catch (err) {
+      console.error("Dial failed:", err);
+      process.exit(1);
+    }
+
+    // Keep node running briefly to maintain connection
+    setTimeout(async () => {
+      console.log("Shutting down dialer node...");
+      await node.stop();
+    }, 5000);
   } catch (err) {
-    console.error("Dial failed:", err);
+    console.error("Dialer setup failed:", err);
+    process.exit(1);
   }
 };
-main();
+
+main().catch(console.error);
 ```
 
 ---
@@ -235,21 +274,45 @@ You can use Docker Compose to run all three nodes in isolated containers. Update
 ```yaml
 version: "3.8"
 services:
-  relay:
-    build: ./app
-    command: node relay.js
-    stdin_open: true
-    tty: true
-  listener:
-    build: ./app
-    command: node listener.js
-    stdin_open: true
-    tty: true
-  dialer:
-    build: ./app
-    command: node dialer.js
-    stdin_open: true
-    tty: true
+  lesson:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: ucw-lesson-04-circuit-relay-v2-js
+    stop_grace_period: 1m
+    volumes:
+      - ./relay.log:/app/relay.log
+    networks:
+      workshop-net:
+        ipv4_address: 172.16.16.16
+
+  checker:
+    build:
+      context: .
+      dockerfile: ./checker/Dockerfile
+    container_name: ucw-checker-04-circuit-relay-v2-js
+    depends_on:
+      - lesson
+    stop_grace_period: 1m
+    environment:
+      - TIMEOUT_DURATION=${TIMEOUT_DURATION:-30s}
+    volumes:
+      - ./checker.log:/app/checker.log
+      - ./relay.log:/app/relay.log
+      - ./listener.log:/app/listener.log
+      - ./dialer.log:/app/dialer.log
+    networks:
+      workshop-net:
+        ipv4_address: 172.16.16.17
+
+networks:
+  workshop-net:
+    name: workshop-net
+    external: false
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.16.0/24 
 ```
 
 ### 5. Check using check.py

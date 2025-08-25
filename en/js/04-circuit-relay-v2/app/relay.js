@@ -47,16 +47,6 @@ async function main() {
   const multiaddrs = node.getMultiaddrs();
   multiaddrs.forEach((ma) => console.log(ma.toString()));
 
-  // Write to relay.log for verification
-  const logData = [
-    `PeerId: ${node.peerId.toString()}`,
-    `Node started with id ${node.peerId.toString()}`,
-    "Listening on:",
-    ...multiaddrs.map((ma) => ma.toString()),
-  ].join("\n");
-
-  fs.writeFileSync("./relay.log", logData);
-
   // Keep the node running
   process.on("SIGTERM", async () => {
     console.log("Shutting down relay node...");

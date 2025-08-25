@@ -6,9 +6,7 @@ import { multiaddr } from "@multiformats/multiaddr";
 import { webSockets } from "@libp2p/websockets";
 import { circuitRelayTransport } from "@libp2p/circuit-relay-v2";
 import { identify } from "@libp2p/identify";
-import fs from "fs";
 
-// Get listener relay address from command line arguments (like lesson 02)
 const LISTENER_RELAY_ADDR = process.argv[2];
 if (!LISTENER_RELAY_ADDR) {
   throw new Error(
@@ -35,23 +33,8 @@ const main = async () => {
       await node.dial(multiaddr(LISTENER_RELAY_ADDR));
       console.log(`Connected to the listener node via ${LISTENER_RELAY_ADDR}`);
       console.log("DIAL SUCCESS");
-
-      // Write to log file for verification
-      const logData = [
-        `Node started with id ${node.peerId.toString()}`,
-        `Connected to the listener node via ${LISTENER_RELAY_ADDR}`,
-        "DIAL SUCCESS",
-      ].join("\n");
-
-      fs.writeFileSync("./dialer.log", logData);
     } catch (err) {
       console.error("Dial failed:", err);
-      const logData = [
-        `Node started with id ${node.peerId.toString()}`,
-        `Dial failed: ${err.message}`,
-      ].join("\n");
-
-      fs.writeFileSync("./dialer.log", logData);
       process.exit(1);
     }
 
