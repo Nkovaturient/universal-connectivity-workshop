@@ -1,0 +1,17 @@
+Starting Universal Connectivity application...
+Local peer id: 12D3KooWKQM4Pr71tf85Ya2fwbLT2hET1s8n2TykauzBQ7fGcNqZ
+Node started successfully
+  • /ip4/127.0.0.1/tcp/39111/p2p/12D3KooWKQM4Pr71tf85Ya2fwbLT2hET1s8n2TykauzBQ7fGcNqZ
+  • /ip4/172.16.16.16/tcp/39111/p2p/12D3KooWKQM4Pr71tf85Ya2fwbLT2hET1s8n2TykauzBQ7fGcNqZ
+Node is running. Press Ctrl+C to stop.
+Peer connected: 12D3KooWLTUqs6LW7HijMphi2SXBSYHQUZwPR2cpN6kcCFbWmYzA
+
+Connection opened:
+   Remote peer : 12D3KooWLTUqs6LW7HijMphi2SXBSYHQUZwPR2cpN6kcCFbWmYzA
+   Local addr  : /ip4/127.0.0.1/tcp/39111/p2p/12D3KooWKQM4Pr71tf85Ya2fwbLT2hET1s8n2TykauzBQ7fGcNqZ
+   Remote addr : /ip4/172.16.16.17/tcp/50390/p2p/12D3KooWLTUqs6LW7HijMphi2SXBSYHQUZwPR2cpN6kcCFbWmYzA
+   • Ping RTT    : 21 ms
+Peer disconnected: 12D3KooWLTUqs6LW7HijMphi2SXBSYHQUZwPR2cpN6kcCFbWmYzA
+Connection closed: 12D3KooWLTUqs6LW7HijMphi2SXBSYHQUZwPR2cpN6kcCFbWmYzA
+
+Shutting down...

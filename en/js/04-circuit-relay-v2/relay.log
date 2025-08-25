@@ -1,0 +1,7 @@
+PeerId: 12D3KooWGaLcYyHHzybMmRiJFj835CiNFDPVcmwLYtHdU9EHkhcs
+Node started with id 12D3KooWGaLcYyHHzybMmRiJFj835CiNFDPVcmwLYtHdU9EHkhcs
+Listening on:
+/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWGaLcYyHHzybMmRiJFj835CiNFDPVcmwLYtHdU9EHkhcs
+/ip4/172.16.16.16/tcp/4001/p2p/12D3KooWGaLcYyHHzybMmRiJFj835CiNFDPVcmwLYtHdU9EHkhcs
+/ip4/127.0.0.1/tcp/4002/ws/p2p/12D3KooWGaLcYyHHzybMmRiJFj835CiNFDPVcmwLYtHdU9EHkhcs
+/ip4/172.16.16.16/tcp/4002/ws/p2p/12D3KooWGaLcYyHHzybMmRiJFj835CiNFDPVcmwLYtHdU9EHkhcs
