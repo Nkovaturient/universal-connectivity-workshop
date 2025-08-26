@@ -67,17 +67,22 @@ import { identify } from "@libp2p/identify";
 import { webSockets } from "@libp2p/websockets";
 import { tcp } from "@libp2p/tcp";
 import { createLibp2p } from "libp2p";
-import { keys } from "@libp2p/crypto";
 import { peerIdFromPrivateKey } from "@libp2p/peer-id";
+import { keys } from "@libp2p/crypto";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function createNode() {
-  const json = JSON.parse(fs.readFileSync("./peer-id.json", "utf8"));
-  const privateKey = keys.privateKeyFromProtobuf(
-    Buffer.from(json.privKey, "base64")
-  );
-  const derivedPeerId = peerIdFromPrivateKey(privateKey);
-  console.log("PeerId:", derivedPeerId.toString());
+  const peerIdPath = path.join(__dirname, "peer-id.json");
+  const peerIdJson = JSON.parse(fs.readFileSync(peerIdPath, "utf8"));
+  const privateKeyBytes = Buffer.from(peerIdJson.privKey, "base64");
+  const privateKey = keys.privateKeyFromProtobuf(privateKeyBytes);
+  // Generate peer ID from the private key
+  const peerId = peerIdFromPrivateKey(privateKey);
+  console.log("PeerId:", peerId.toString());
 
   const node = await createLibp2p({
     privateKey,
@@ -117,6 +122,7 @@ async function main() {
 }
 
 main().catch(console.error);
+
 
 ```
 

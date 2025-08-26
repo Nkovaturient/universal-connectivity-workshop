@@ -40,7 +40,6 @@ async function getRelayMultiaddr() {
         }
       }
     } catch (err) {
-      // Ignore errors, keep trying
     }
     await sleep(2000);
     attempts++;
@@ -65,7 +64,6 @@ async function getListenerRelayAddr() {
         }
       }
     } catch (err) {
-      // Ignore errors, keep trying
     }
     await sleep(2000);
     attempts++;
@@ -107,29 +105,22 @@ async function main() {
     const relayMultiaddr = await getRelayMultiaddr();
     // Give the relay a moment to finish binding before the listener dials
     await sleep(2000);
-
     // Start listener and capture its output
     const listenerProcess = execAsync(
       `node listener.js "${relayMultiaddr}" > /app/listener.log 2>&1`
     );
-    listenerProcess.catch(() => {}); // Ignore errors
-
+    listenerProcess.catch(() => {});
     await sleep(8000);
-
     // Get listener relay address and start dialer
     const listenerRelayAddr = await getListenerRelayAddr();
-
     // Log the essential circuit relay address
     console.log(`Advertising with a relay address of ${listenerRelayAddr}`);
-
     // Start dialer and capture its output
     await execAsync(
       `node dialer.js "${listenerRelayAddr}" > /app/dialer.log 2>&1`
     );
-
     // Validate all logs
     const logFiles = ["/app/relay.log", "/app/listener.log", "/app/dialer.log"];
-
     for (const file of logFiles) {
       if (!(await waitForFile(file))) {
         throw new Error(`Missing ${file}`);
