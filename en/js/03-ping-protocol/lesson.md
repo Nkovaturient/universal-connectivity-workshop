@@ -189,6 +189,7 @@ async function main() {
   const relayAddr = process.argv[2];
   const remoteAddrs = relayAddr ? [multiaddr(relayAddr)] : [];
 
+
   // Create the libp2p node with configured ping service
 
   const peerId = await createEd25519PeerId();

@@ -41,7 +41,6 @@ async function getLessonMultiaddr() {
     await sleep(2000);
     attempts++;
   }
-
   throw new Error("Could not get lesson multiaddr from stdout.log");
 }
 
