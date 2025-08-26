@@ -105,6 +105,8 @@ async function main() {
   try {
     // Get relay multiaddr
     const relayMultiaddr = await getRelayMultiaddr();
+    // Give the relay a moment to finish binding before the listener dials
+    await sleep(5000);
 
     // Start listener and capture its output
     const listenerProcess = execAsync(

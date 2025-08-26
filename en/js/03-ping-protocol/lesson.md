@@ -170,7 +170,6 @@ In your event handling section, add listeners for ping events alongside your exi
 
   // Keep the process alive
   process.stdin.resume();
-};
 
 main().catch((error) => {
   console.error('Error:', error);

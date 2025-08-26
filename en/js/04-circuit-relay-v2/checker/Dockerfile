@@ -2,16 +2,13 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy package.json and install dependencies from checker directory
-COPY ./checker/package*.json ./
-RUN npm install
+# Install the same dependencies the user nodes need
+COPY ./app/package*.json ./
+RUN npm install --omit=dev
 
-# Copy the checker script
-COPY ./checker/index.js .
-
-# Copy the user's node files from app directory for execution
+# Copy checker script and user node files
+COPY ./checker/index.js ./
 COPY ./app/listener.js ./
 COPY ./app/dialer.js ./
 
-# Default command
 CMD ["node", "index.js"]

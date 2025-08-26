@@ -6,8 +6,12 @@ import { multiaddr } from "@multiformats/multiaddr";
 import { webSockets } from "@libp2p/websockets";
 import { circuitRelayTransport } from "@libp2p/circuit-relay-v2";
 import { identify } from "@libp2p/identify";
+import { createEd25519PeerId } from "@libp2p/peer-id-factory";
 
 const LISTENER_RELAY_ADDR = process.argv[2];
+// const LISTENER_RELAY_ADDR = multiaddr(
+//   "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWJdPLnHZjYGr32LPoUyQDEt34DL2yZ9B6wyZ3tgdnRr2U/p2p-circuit/p2p/12D3KooWPDK9yfeoKGxTq55Hf15jqw6hNG5TUuqCDDMJkBo5PG4D"
+// );
 if (!LISTENER_RELAY_ADDR) {
   throw new Error(
     "Listener relay address must be provided as command line argument"
@@ -16,7 +20,9 @@ if (!LISTENER_RELAY_ADDR) {
 
 const main = async () => {
   try {
+    const peerId = await createEd25519PeerId();
     const node = await createLibp2p({
+      peerId,
       addresses: { listen: [] },
       transports: [tcp(), webSockets(), circuitRelayTransport()],
       connectionEncrypters: [noise()],
