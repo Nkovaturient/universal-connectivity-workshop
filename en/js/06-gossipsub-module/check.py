@@ -40,27 +40,22 @@ def validate_multiaddr(addr_str):
 def check_output():
     """Check the output log for expected gossipsub functionality"""
     # Workshop tool runs Docker Compose which creates stdout.log
-    # We need to check stdout.log first, then fallback to checker.log
-    log_file = None
+    log_file = "stdout.log"
     
-    if os.path.exists("stdout.log"):
-        log_file = "stdout.log"
-        print("i Found stdout.log from Docker container")
-    elif os.path.exists("checker.log"):
-        log_file = "checker.log"
-        print("i Found checker.log")
-    else:
-        print("X No log files found (stdout.log or checker.log)")
+    if not os.path.exists(log_file):
+        print("X No stdout.log found from Docker container")
         return False
 
     try:
         with open(log_file, "r") as f:
             output = f.read()
+        
+        print("i Found stdout.log from Docker container")
 
         print("i Checking gossipsub pub/sub functionality...")
 
         if not output.strip():
-            print(f"X {log_file} is empty - application may have failed to start")
+            print("X Log files are empty - application may have failed to start")
             return False
 
         # Check for node startup with Peer ID
@@ -109,43 +104,68 @@ def check_output():
         topic_name = subscription_matches.group(1)
         print(f"+ Successfully subscribed to topic: {topic_name}")
 
-        # Check for message publishing (key GossipSub functionality)
-        publish_pattern = r"Published message:\s*\"([^\"]+)\""
-        publish_matches = re.search(publish_pattern, output)
+        # Check for multiple peer setup (REQUIRED for GossipSub)
+        peer_ids = re.findall(r"Node started with Peer ID:\s*(12D3KooW[A-Za-z0-9]+)", output)
+        if len(peer_ids) < 2:
+            print("X Insufficient peers detected. GossipSub requires multiple peers for proper demonstration.")
+            print(f"i Expected: At least 2 peers, Found: {len(peer_ids)}")
+            return False
         
-        if publish_matches:
-            published_message = publish_matches.group(1)
-            print(f"+ Successfully published message: \"{published_message}\"")
-        else:
-            # Check for message reception (alternative validation)
-            message_pattern = r"(MESSAGE RECEIVED|Received message) from (12D3KooW[A-Za-z0-9]+).*\"([^\"]+)\""
-            message_matches = re.search(message_pattern, output)
-            
-            if message_matches:
-                sender_peer_id = message_matches.group(2)
-                message_content = message_matches.group(3)
-                
-                valid, sender_peer_message = validate_peer_id(sender_peer_id)
-                if not valid:
-                    print(f"X {sender_peer_message}")
-                    return False
-                
-                print(f"+ Successfully received message from {sender_peer_message}: \"{message_content}\"")
-            else:
-                print("i No message publishing or reception detected - basic gossipsub setup validated")
-
-        # Check for remote peer connection (if attempted)
-        connection_pattern = r"Connected to remote peer:\s*([/\w\.:-]+)"
+        print(f"+ Multi-peer setup detected: {len(peer_ids)} peers started")
+        
+        # Check for peer connection (REQUIRED)
+        connection_pattern = r"Successfully connected to remote peer:\s*([/\w\.:-]+)"
         connection_matches = re.search(connection_pattern, output)
         
-        if connection_matches:
-            remote_addr = connection_matches.group(1)
-            valid, remote_addr_message = validate_multiaddr(remote_addr)
-            if not valid:
-                print(f"X {remote_addr_message}")
-                return False
-
-            print(f"+ Connected to remote peer: {remote_addr_message}")
+        if not connection_matches:
+            print("X No peer connections detected. GossipSub requires peers to connect to each other.")
+            print("i Expected: 'Successfully connected to remote peer: <multiaddr>'")
+            return False
+        
+        remote_addr = connection_matches.group(1)
+        valid, remote_addr_message = validate_multiaddr(remote_addr)
+        if not valid:
+            print(f"X {remote_addr_message}")
+            return False
+        
+        print(f"+ Successfully connected peers: {remote_addr_message}")
+        
+        # Check for message publishing (REQUIRED)
+        publish_pattern = r"Published message:\s*\"([^\"]+)\""
+        publish_matches = re.findall(publish_pattern, output)
+        
+        if len(publish_matches) < 2:
+            print("X Insufficient message publishing detected. Expected multiple messages from different peers.")
+            print(f"i Expected: At least 2 published messages, Found: {len(publish_matches)}")
+            return False
+        
+        print(f"+ Multiple messages published: {len(publish_matches)} messages")
+        for i, message in enumerate(publish_matches[:3]):  # Show first 3 messages
+            print(f"  - Message {i+1}: \"{message[:50]}{'...' if len(message) > 50 else ''}\"")
+        
+        # Check for cross-peer message reception (REQUIRED)
+        received_pattern = r"\[Peer [AB]\] Received message from (12D3KooW[A-Za-z0-9]+).*\"([^\"]+)\""
+        received_matches = re.findall(received_pattern, output)
+        
+        if len(received_matches) < 1:
+            print("X No cross-peer message reception detected. GossipSub mesh is not working properly.")
+            print("i Expected: Messages received by different peers from each other")
+            return False
+        
+        print(f"+ Cross-peer message exchange detected: {len(received_matches)} message(s) received")
+        for i, (sender, message) in enumerate(received_matches[:2]):  # Show first 2
+            print(f"  - Received from {sender[:12]}...: \"{message[:40]}{'...' if len(message) > 40 else ''}\"")
+        
+        # Check for GossipSub mesh formation
+        subscribers_pattern = r"Peers subscribed to topic.*:\s*([0-9]+)"
+        subscribers_matches = re.findall(subscribers_pattern, output)
+        
+        has_mesh = any(int(count) > 0 for count in subscribers_matches)
+        if not has_mesh:
+            print("X No topic subscribers detected. GossipSub mesh formation failed.")
+            return False
+        
+        print("+ GossipSub mesh formation confirmed: Topic has active subscribers")
 
         return True
 
