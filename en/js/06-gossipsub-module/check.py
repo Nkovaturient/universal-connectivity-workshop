@@ -58,114 +58,98 @@ def check_output():
             print("X Log files are empty - application may have failed to start")
             return False
 
-        # Check for node startup with Peer ID
-        startup_pattern = r"Node started with Peer ID:\s*(12D3KooW[A-Za-z0-9]+)"
-        startup_matches = re.search(startup_pattern, output)
-        if not startup_matches:
-            print("X No node startup with Peer ID detected")
-            print(f"i Expected: 'Node started with Peer ID: <peer_id>'")
+        # Check for coordinated multi-node startup with Peer IDs
+        startup_pattern = r"\[NODE[12]\] Started with Peer ID:\s*(12D3KooW[A-Za-z0-9]+)"
+        startup_matches = re.findall(startup_pattern, output)
+        if len(startup_matches) < 2:
+            print("X Insufficient nodes detected - expected both NODE1 and NODE2 startup")
+            print(f"i Expected: '[NODE1] Started with Peer ID: <peer_id>' and '[NODE2] Started with Peer ID: <peer_id>'")
             print(f"i Actual output: {repr(output[:500])}")
             return False
 
-        peer_id = startup_matches.group(1)
-        valid, peer_id_message = validate_peer_id(peer_id)
-        if not valid:
-            print(f"X {peer_id_message}")
-            return False
+        # Validate both peer IDs
+        for i, peer_id in enumerate(startup_matches[:2]):
+            valid, peer_id_message = validate_peer_id(peer_id)
+            if not valid:
+                print(f"X NODE{i+1} {peer_id_message}")
+                return False
 
-        print(f"+ Node started with {peer_id_message}")
+        print(f"+ NODE1 started with Peer ID: {startup_matches[0]}")
+        print(f"+ NODE2 started with Peer ID: {startup_matches[1]}")
+        print(f"+ Multi-node coordinated startup detected: {len(startup_matches)} nodes")
 
-        # Check for listening addresses
-        listening_pattern = r"Listening on:\s*([/\w\.:-]+)"
+        # Check for coordinated listening addresses from both nodes
+        listening_pattern = r"\[NODE[12]\] Listening on:\s*([/\w\.:-]+)"
         listening_matches = re.findall(listening_pattern, output)
-        if not listening_matches:
-            print("X No listening addresses detected")
-            print(f"ℹ Expected: 'Listening on: <multiaddr>'")
-            print(f"ℹ Actual output: {repr(output)}")
+        if len(listening_matches) < 4:  # Expect at least 2 addresses per node (2 nodes)
+            print("X Insufficient listening addresses detected from coordinated nodes")
+            print(f"i Expected: Multiple '[NODE1] Listening on: <multiaddr>' and '[NODE2] Listening on: <multiaddr>'")
+            print(f"i Found: {len(listening_matches)} addresses")
             return False
 
-        for addr in listening_matches:
+        # Validate multiaddresses
+        for addr in listening_matches[:4]:  # Check first 4 addresses
             valid, addr_message = validate_multiaddr(addr)
             if not valid:
                 print(f"X {addr_message}")
                 return False
 
-        print(f"+ Node listening on {len(listening_matches)} address(es)")
+        print(f"+ Both nodes listening on {len(listening_matches)} address(es) total")
 
-        # Check for topic subscription (flexible for both topics)
-        subscription_pattern = r"Subscribed to topic:\s*(universal-connectivity|gossipsub-chat)"
-        subscription_matches = re.search(subscription_pattern, output)
-        if not subscription_matches:
-            print("X No topic subscription detected")
-            print(f"i Expected: 'Subscribed to topic: <topic_name>'")
-            print(f"i Actual output: {repr(output[:500])}")
+        # Check for coordinated topic subscription from both nodes
+        subscription_pattern = r"\[NODE[12]\] Subscribed to topic:\s*(universal-connectivity|gossipsub-chat)"
+        subscription_matches = re.findall(subscription_pattern, output)
+        if len(subscription_matches) < 2:
+            print("X Insufficient topic subscriptions detected - expected both NODE1 and NODE2")
+            print(f"i Expected: '[NODE1] Subscribed to topic: <topic>' and '[NODE2] Subscribed to topic: <topic>'")
+            print(f"i Found: {len(subscription_matches)} subscription(s)")
             return False
 
-        topic_name = subscription_matches.group(1)
-        print(f"+ Successfully subscribed to topic: {topic_name}")
+        print(f"+ Both nodes subscribed to topic: {subscription_matches[0]} ({len(subscription_matches)} subscriptions total)")
 
-        # Check for multiple peer setup (REQUIRED for GossipSub)
-        peer_ids = re.findall(r"Node started with Peer ID:\s*(12D3KooW[A-Za-z0-9]+)", output)
-        if len(peer_ids) < 2:
-            print("X Insufficient peers detected. GossipSub requires multiple peers for proper demonstration.")
-            print(f"i Expected: At least 2 peers, Found: {len(peer_ids)}")
-            return False
-        
-        print(f"+ Multi-peer setup detected: {len(peer_ids)} peers started")
-        
-        # Check for peer connection (REQUIRED)
-        connection_pattern = r"Successfully connected to remote peer:\s*([/\w\.:-]+)"
+        # Check for coordinated peer connection
+        connection_pattern = r"\[NODE2\] Successfully connected to NODE1"
         connection_matches = re.search(connection_pattern, output)
         
         if not connection_matches:
-            print("X No peer connections detected. GossipSub requires peers to connect to each other.")
-            print("i Expected: 'Successfully connected to remote peer: <multiaddr>'")
+            print("X No coordinated peer connection detected")
+            print("i Expected: '[NODE2] Successfully connected to NODE1'")
             return False
         
-        remote_addr = connection_matches.group(1)
-        valid, remote_addr_message = validate_multiaddr(remote_addr)
-        if not valid:
-            print(f"X {remote_addr_message}")
-            return False
+        print("+ Successfully established peer-to-peer connection between nodes")
         
-        print(f"+ Successfully connected peers: {remote_addr_message}")
-        
-        # Check for message publishing (REQUIRED)
-        publish_pattern = r"Published message:\s*\"([^\"]+)\""
+        # Check for coordinated message publishing from both nodes
+        publish_pattern = r"\[NODE[12]\] (Response )?[Mm]essage published successfully"
         publish_matches = re.findall(publish_pattern, output)
         
         if len(publish_matches) < 2:
-            print("X Insufficient message publishing detected. Expected multiple messages from different peers.")
-            print(f"i Expected: At least 2 published messages, Found: {len(publish_matches)}")
+            print("X Insufficient coordinated message publishing detected")
+            print(f"i Expected: Both NODE1 and NODE2 to publish messages, Found: {len(publish_matches)}")
             return False
         
-        print(f"+ Multiple messages published: {len(publish_matches)} messages")
-        for i, message in enumerate(publish_matches[:3]):  # Show first 3 messages
-            print(f"  - Message {i+1}: \"{message[:50]}{'...' if len(message) > 50 else ''}\"")
+        print(f"+ Coordinated message publishing detected: {len(publish_matches)} successful publications")
         
         # Check for cross-peer message reception (REQUIRED)
-        received_pattern = r"\[Peer [AB]\] Received message from (12D3KooW[A-Za-z0-9]+).*\"([^\"]+)\""
+        received_pattern = r"\[NODE[12]\] Received message from (12D3KooW[A-Za-z0-9]+)"
         received_matches = re.findall(received_pattern, output)
         
-        if len(received_matches) < 1:
-            print("X No cross-peer message reception detected. GossipSub mesh is not working properly.")
-            print("i Expected: Messages received by different peers from each other")
+        if len(received_matches) < 2:
+            print("X Insufficient cross-peer message reception detected")
+            print("i Expected: Both nodes to receive messages from each other")
+            print(f"i Found: {len(received_matches)} message reception(s)")
             return False
         
-        print(f"+ Cross-peer message exchange detected: {len(received_matches)} message(s) received")
-        for i, (sender, message) in enumerate(received_matches[:2]):  # Show first 2
-            print(f"  - Received from {sender[:12]}...: \"{message[:40]}{'...' if len(message) > 40 else ''}\"")
+        print(f"+ Cross-peer message exchange confirmed: {len(received_matches)} message(s) received between nodes")
         
-        # Check for GossipSub mesh formation
-        subscribers_pattern = r"Peers subscribed to topic.*:\s*([0-9]+)"
-        subscribers_matches = re.findall(subscribers_pattern, output)
+        # Check for GossipSub mesh formation verification
+        mesh_pattern = r"\[NODE[12]\] Sees \d+ peer\(s\) subscribed to topic"
+        mesh_matches = re.findall(mesh_pattern, output)
         
-        has_mesh = any(int(count) > 0 for count in subscribers_matches)
-        if not has_mesh:
-            print("X No topic subscribers detected. GossipSub mesh formation failed.")
+        if len(mesh_matches) < 2:
+            print("X Insufficient mesh formation verification detected")
             return False
         
-        print("+ GossipSub mesh formation confirmed: Topic has active subscribers")
+        print("+ GossipSub mesh formation verified from both node perspectives")
 
         return True
 

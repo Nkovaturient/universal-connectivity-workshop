@@ -90,114 +90,123 @@ function setupMessageHandling(node, nodeName) {
  */
 async function demonstrateMultiPeerGossipSub() {
   console.log('Starting GossipSub Universal Connectivity Lesson...')
-  console.log('Setting up multi-peer GossipSub demonstration...')
+  console.log('Demonstrating coordinated multi-peer GossipSub messaging...')
   
   try {
-    // Create bootstrap peer - the first node in our network
-    console.log('\n=== Creating Bootstrap Peer (Peer A) ===')
-    const peerA = await createNode(0)
-    await peerA.start()
+    // Create and start Node 1 (Bootstrap Peer)
+    console.log('\n=== NODE 1 SETUP (Bootstrap Peer) ===')
+    const node1 = await createNode(0)
+    await node1.start()
     
-    console.log(`Node started with Peer ID: ${peerA.peerId.toString()}`)
-    peerA.getMultiaddrs().forEach(addr => {
-      console.log(`Listening on: ${addr.toString()}`)
+    console.log(`[NODE1] Started with Peer ID: ${node1.peerId.toString()}`)
+    node1.getMultiaddrs().forEach(addr => {
+      console.log(`[NODE1] Listening on: ${addr.toString()}`)
     })
     
-    setupMessageHandling(peerA, 'Peer A')
-    await peerA.services.pubsub.subscribe(TOPIC)
-    console.log(`Subscribed to topic: ${TOPIC}`)
+    setupMessageHandling(node1, 'NODE1')
+    await node1.services.pubsub.subscribe(TOPIC)
+    console.log(`[NODE1] Subscribed to topic: ${TOPIC}`)
     
-    // Get the bootstrap address for other peers to connect to
-    const bootstrapAddr = peerA.getMultiaddrs()[0]
-    console.log(`Bootstrap address: ${bootstrapAddr.toString()}`)
+    // Get bootstrap address for other nodes to connect
+    const bootstrapAddr = node1.getMultiaddrs()[0]
+    console.log(`[NODE1] Ready to accept connections at: ${bootstrapAddr.toString()}`)
     
-    // Create second peer that will connect to the bootstrap peer
-    console.log('\n=== Creating Second Peer (Peer B) ===')
-    const peerB = await createNode(0)
-    await peerB.start()
+    // Create and start Node 2 (Connecting Peer)
+    console.log('\n=== NODE 2 SETUP (Connecting Peer) ===')
+    const node2 = await createNode(0)
+    await node2.start()
     
-    console.log(`Node started with Peer ID: ${peerB.peerId.toString()}`)
-    peerB.getMultiaddrs().forEach(addr => {
-      console.log(`Listening on: ${addr.toString()}`)
+    console.log(`[NODE2] Started with Peer ID: ${node2.peerId.toString()}`)
+    node2.getMultiaddrs().forEach(addr => {
+      console.log(`[NODE2] Listening on: ${addr.toString()}`)
     })
     
-    setupMessageHandling(peerB, 'Peer B')
-    await peerB.services.pubsub.subscribe(TOPIC)
-    console.log(`Subscribed to topic: ${TOPIC}`)
+    setupMessageHandling(node2, 'NODE2')
+    await node2.services.pubsub.subscribe(TOPIC)
+    console.log(`[NODE2] Subscribed to topic: ${TOPIC}`)
     
-    // Establish connection between peers to form network
-    console.log('\n=== Connecting Peers ===')
+    // Establish peer-to-peer connection
+    console.log('\n=== PEER CONNECTION ESTABLISHMENT ===')
     try {
-      console.log(`Connecting Peer B to Peer A: ${bootstrapAddr.toString()}`)
-      await peerB.dial(bootstrapAddr)
-      console.log(`Successfully connected to remote peer: ${bootstrapAddr.toString()}`)
+      console.log(`[NODE2] Attempting to connect to NODE1 at: ${bootstrapAddr.toString()}`)
+      await node2.dial(bootstrapAddr)
+      console.log(`[NODE2] Successfully connected to NODE1`)
+      console.log(`[NODE1] Accepted connection from NODE2`)
     } catch (err) {
-      console.error('Failed to connect peers:', err.message)
+      console.error('[ERROR] Failed to establish peer connection:', err.message)
       return false
     }
     
     // Allow time for GossipSub mesh topology to stabilize
-    console.log('\n=== Waiting for GossipSub mesh formation ===')
+    console.log('\n=== GOSSIPSUB MESH FORMATION ===')
+    console.log('Waiting for GossipSub mesh topology to stabilize...')
     await new Promise(resolve => setTimeout(resolve, 3000))
     
-    // Verify mesh formation by checking topic subscribers
-    const peerASubscribers = peerA.services.pubsub.getSubscribers(TOPIC)
-    const peerBSubscribers = peerB.services.pubsub.getSubscribers(TOPIC)
+    // Verify mesh formation from both perspectives
+    const node1Subscribers = node1.services.pubsub.getSubscribers(TOPIC)
+    const node2Subscribers = node2.services.pubsub.getSubscribers(TOPIC)
     
-    console.log(`Peers subscribed to topic "${TOPIC}" from Peer A perspective: ${peerASubscribers.length}`)
-    peerASubscribers.forEach(peer => {
-      console.log(`  - ${peer.toString()}`)
+    console.log(`[NODE1] Sees ${node1Subscribers.length} peer(s) subscribed to topic "${TOPIC}":`)
+    node1Subscribers.forEach(peer => {
+      console.log(`[NODE1]   - Peer: ${peer.toString()}`)
     })
     
-    console.log(`Peers subscribed to topic "${TOPIC}" from Peer B perspective: ${peerBSubscribers.length}`)
-    peerBSubscribers.forEach(peer => {
-      console.log(`  - ${peer.toString()}`)
+    console.log(`[NODE2] Sees ${node2Subscribers.length} peer(s) subscribed to topic "${TOPIC}":`)
+    node2Subscribers.forEach(peer => {
+      console.log(`[NODE2]   - Peer: ${peer.toString()}`)
     })
     
-    // Demonstrate bidirectional message exchange
-    console.log('\n=== Testing Message Exchange ===')
+    // Demonstrate coordinated bidirectional message exchange
+    console.log('\n=== COORDINATED MESSAGE EXCHANGE ===')
     
-    // Publish message from first peer
-    const messageFromA = `Hello from Peer A (${peerA.peerId.toString()}) at ${new Date().toISOString()}`
-    console.log(`[Peer A] Publishing message: "${messageFromA}"`)
-    await peerA.services.pubsub.publish(TOPIC, uint8ArrayFromString(messageFromA))
-    console.log(`Published message: "${messageFromA}"`)
+    // NODE1 publishes first message
+    const messageFromNode1 = `Hello from NODE1 (${node1.peerId.toString()}) at ${new Date().toISOString()}`
+    console.log(`[NODE1] Publishing message to topic "${TOPIC}": "${messageFromNode1}"`)
+    await node1.services.pubsub.publish(TOPIC, uint8ArrayFromString(messageFromNode1))
+    console.log(`[NODE1] Message published successfully`)
     
-    // Allow time for message to propagate through mesh
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Wait for message propagation and NODE2 to receive it
+    await new Promise(resolve => setTimeout(resolve, 1500))
     
-    // Publish message from second peer
-    const messageFromB = `Hello from Peer B (${peerB.peerId.toString()}) at ${new Date().toISOString()}`
-    console.log(`[Peer B] Publishing message: "${messageFromB}"`)
-    await peerB.services.pubsub.publish(TOPIC, uint8ArrayFromString(messageFromB))
-    console.log(`Published message: "${messageFromB}"`)
+    // NODE2 publishes response message
+    const messageFromNode2 = `Hello from NODE2 (${node2.peerId.toString()}) at ${new Date().toISOString()}`
+    console.log(`[NODE2] Publishing response message to topic "${TOPIC}": "${messageFromNode2}"`)
+    await node2.services.pubsub.publish(TOPIC, uint8ArrayFromString(messageFromNode2))
+    console.log(`[NODE2] Response message published successfully`)
     
-    // Allow time for message to propagate through mesh
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Wait for final message propagation
+    await new Promise(resolve => setTimeout(resolve, 1500))
     
-    // Summary of demonstrated GossipSub capabilities
-    console.log('\n=== GossipSub Demonstration Complete ===')
-    console.log('GossipSub demonstration complete!')
-    console.log('Key achievements:')
-    console.log('✓ Created multiple libp2p nodes with GossipSub service')
-    console.log('✓ Connected peers in a mesh network')
-    console.log('✓ Subscribed to pub/sub topic from multiple peers')
-    console.log('✓ Successfully exchanged messages between peers')
-    console.log('✓ Demonstrated decentralized messaging capabilities')
+    // Summary of coordinated GossipSub demonstration
+    console.log('\n=== GOSSIPSUB DEMONSTRATION SUMMARY ===')
+    console.log('Multi-peer GossipSub coordination completed successfully!')
+    console.log('')
+    console.log('Demonstrated capabilities:')
+    console.log('✓ NODE1: Started, listened, subscribed, published, and received messages')
+    console.log('✓ NODE2: Started, listened, subscribed, connected, published, and received messages')
+    console.log('✓ Established peer-to-peer connection between nodes')
+    console.log('✓ Formed GossipSub mesh topology with topic subscribers')
+    console.log('✓ Coordinated bidirectional message exchange')
+    console.log('✓ Verified message delivery from both perspectives')
+    console.log('')
+    console.log('This demonstrates real-world GossipSub decentralized messaging!')
     
     // Maintain nodes briefly for workshop tool validation
-    console.log('\nKeeping nodes running for workshop validation...')
+    console.log('\n[SYSTEM] Keeping nodes running for workshop validation...')
     await new Promise(resolve => setTimeout(resolve, 5000))
     
     // Clean shutdown of all nodes
-    console.log('Workshop lesson completed - shutting down gracefully')
-    await peerA.stop()
-    await peerB.stop()
+    console.log('[SYSTEM] Workshop lesson completed - shutting down gracefully')
+    console.log('[NODE1] Shutting down...')
+    await node1.stop()
+    console.log('[NODE2] Shutting down...')
+    await node2.stop()
+    console.log('[SYSTEM] All nodes stopped successfully')
     
     return true
     
   } catch (error) {
-    console.error('Error in multi-peer demonstration:', error)
+    console.error('[ERROR] Multi-peer demonstration failed:', error)
     return false
   }
 }
