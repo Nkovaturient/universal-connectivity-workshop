@@ -1,10 +1,32 @@
-version: '3.8'
 services:
-  app:
+  lesson:
     build:
       context: ./app
+      dockerfile: Dockerfile
+    stop_grace_period: 1m
     environment:
-      - TIMEOUT_DURATION=10s
-      - LOG_FILE=/app/stdout.log
-    stdin_open: true
-    tty: true 
+      - TIMEOUT_DURATION=${TIMEOUT_DURATION:-30s}
+      - REMOTE_PEERS=${REMOTE_PEERS:-/ip4/172.16.16.17/tcp/9092}
+    volumes:
+      - ./stdout.log:/app/stdout.log
+    networks:
+      workshop-net:
+        ipv4_address: 172.16.16.16
+  checker:
+    build:
+      context: ./checker
+      dockerfile: Dockerfile
+    environment:
+      - PROJECT_ROOT=${PROJECT_ROOT}
+      - LESSON_PATH=${LESSON_PATH}
+    volumes:
+      - ./checker.log:/app/checker.log
+      - ./stdout.log:/app/stdout.log
+    networks:
+      workshop-net:
+        ipv4_address: 172.16.16.17
+
+networks:
+  workshop-net:
+    name: workshop-net
+    external: true
