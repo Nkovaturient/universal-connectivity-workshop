@@ -91,27 +91,7 @@ The checker will respond with heartbeat messages and you can have a real convers
 docker-compose down
 ```
 
-### Option 2: Automated Demo (Single Terminal)
-
-The easiest way to test the complete functionality:
-
-```bash
-cd app
-npm install
-npm run demo
-```
-
-This will:
-- ✅ Create two libp2p nodes automatically
-- ✅ Connect them together (Node 2 dials Node 1)
-- ✅ Run all protocol tests (Ping, Identify)
-- ✅ Form Gossipsub mesh
-- ✅ Exchange chat messages automatically
-- ✅ Show complete working demonstration
-
-**No manual multiaddr copying needed!**
-
-### Option 3: Interactive Testing (Two Terminals)
+### Option 2: Interactive Testing (Two Terminals)
 
 
 For interactive chat between two peers:
@@ -127,7 +107,7 @@ node index.js
 ```bash
 cd app
 # Copy multiaddr from Terminal 1 output
-node index.js /ip4/127.0.0.1/tcp/PORT/p2p/PEER_ID
+node index.js <terminal_1_listening_multiaddr>
 ```
 
 - **🚀 ChatRoom is ready and both nodes are successfuly connected to each other. Congrats!! 🚀**

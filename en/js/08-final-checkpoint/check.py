@@ -29,59 +29,59 @@ def check_checker_output():
     try:
         with open(checker_log, "r") as f:
             output = f.read()
-        
+
         print("i Found checker.log from Docker container")
-        print("i Checking checker functionality...")
+        print("i Checking checker functionality (CSV events)...")
 
         if not output.strip():
             print("X Checker log is empty - checker may have failed to start")
             return False
         
-        # Check for checker startup
-        if not re.search(r"Starting Universal Connectivity Checker", output):
-            print("X Checker startup message not found")
+        # Check for error messages in checker log
+        if "Error:" in output or "error" in output.lower():
+            error_lines = [line for line in output.split('\n') if 'error' in line.lower() or 'Error' in line]
+            if error_lines:
+                print(f"X Checker log contains errors:")
+                for error_line in error_lines[:3]:  # Show first 3 errors
+                    print(f"i   {error_line}")
+                # Don't return False yet - errors might be non-fatal
+
+        # Check for listening addresses (printed on startup)
+        listening_lines = [line for line in output.split('\n') if line.startswith('listening,')]
+        if listening_lines:
+            print("+ Checker printed listening addresses on startup")
+            for line in listening_lines[:2]:  # Show first 2 listening addresses
+                addr = line.replace('listening,', '')
+                if '/p2p/' in addr:
+                    print(f"  ✓ {addr}")
+        
+        # CSV-based checks for interactive readiness
+        # 1) Peer ID implied by any connected/subscribe/msg lines
+        connected = re.search(r"connected,(12D3KooW[A-Za-z0-9]+),", output)
+        subscribed = re.search(r"subscribe,(12D3KooW[A-Za-z0-9]+),universal-connectivity", output)
+        any_msg = re.search(r"msg,(12D3KooW[A-Za-z0-9]+),universal-connectivity,", output)
+
+        # At least connected OR subscribed should be present
+        if not (connected or subscribed):
+            print("X Checker did not receive connections or subscriptions yet")
             return False
-        
-        print("+ Checker started successfully")
-        
-        # Check for peer ID
-        peer_id_pattern = r"Local peer id:\s*(12D3KooW[A-Za-z0-9]+)"
-        peer_id_match = re.search(peer_id_pattern, output)
-        
-        if not peer_id_match:
-            print("X Checker peer ID not found")
-            return False
-        
-        checker_peer_id = peer_id_match.group(1)
-        valid, message = validate_peer_id(checker_peer_id)
-        if not valid:
-            print(f"X {message}")
-            return False
-        
-        print(f"+ Checker peer ID: {checker_peer_id}")
-        
-        # Check for subscriptions
-        if re.search(r"Subscribed to topic.*universal-connectivity", output):
-            print("+ Checker subscribed to topics")
-        
-        # Check for ChatRoom initialization
-        if re.search(r"\[CHAT\].*Initializing checker chat room", output):
-            print("+ Checker chat room initialized")
-        
-        # Check for mesh formation capability
-        if re.search(r"\[CHAT\].*Waiting.*mesh to form|GOSSIPSUB MESH SUCCESSFULLY FORMED", output):
-            print("+ Checker has mesh formation capability")
-        
-        # Check for interactive mode setup
-        if re.search(r"\[SYSTEM\].*Running in.*mode|Ready to chat", output, re.IGNORECASE):
-            print("+ Checker interactive mode configured")
-        
-        # Check for port 9091 listening
-        if re.search(r"/ip4/.*tcp/9091", output):
-            print("+ Checker listening on port 9091 (accessible for dialing)")
-        
+
+        if connected:
+            peer = connected.group(1)
+            valid, _ = validate_peer_id(peer)
+            if not valid:
+                print("X Invalid peer id in connected event")
+                return False
+            print("+ Checker accepted connection from student app")
+
+        if subscribed:
+            print("+ Checker observed subscription to universal-connectivity topic")
+
+        if any_msg:
+            print("+ Checker observed a chat message on universal-connectivity")
+
         return True
-        
+
     except Exception as e:
         print(f"X Error reading checker.log: {e}")
         return False

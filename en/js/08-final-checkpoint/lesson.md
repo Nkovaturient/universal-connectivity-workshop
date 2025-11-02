@@ -149,12 +149,74 @@ The checker is a **fully functional libp2p node** that:
 
 ### How to Use the Checker
 
-1. **Start the checker**: `docker-compose up -d checker`
-2. **Get its address**: `docker-compose logs checker | grep "Listening on"`
-3. **Connect your app**: `node index.js /ip4/127.0.0.1/tcp/9091/p2p/CHECKER_PEER_ID`
-4. **Start chatting**: Type messages and see the checker respond!
+#### Option 1: Connect Without Peer ID (Recommended - Dynamic Discovery)
 
-This gives you a **real peer-to-peer chat experience** with a live server!
+1. **Start the checker**: 
+   ```bash
+   docker-compose up -d checker
+   ```
+
+2. **Connect your app** (peer ID will be discovered automatically via Identify):
+   ```bash
+   cd app
+   npm install
+   node index.js /ip4/127.0.0.1/tcp/9091
+   ```
+
+   The app will automatically discover the checker's peer ID through the Identify protocol - no need to look it up!
+
+3. **Start chatting**: Once connected, type messages and see the checker respond!
+
+#### Option 2: Get Checker Peer ID First (If Needed)
+
+If you want to use the checker's peer ID explicitly:
+
+1. **Start the checker**: `docker-compose up -d checker`
+
+2. **Wait a moment**, then get the checker's peer ID from its log:
+   ```bash
+   # Extract peer ID from checker.log (appears after first connection)
+   grep -o "12D3KooW[A-Za-z0-9]*" checker.log | head -1
+   ```
+
+   Or if the checker has connected to another peer:
+   ```bash
+   # Get checker's peer ID from any connected event
+   docker-compose logs checker 2>&1 | grep -o "connected,12D3KooW[A-Za-z0-9]*" | head -1 | cut -d',' -f2
+   ```
+
+3. **Connect with full multiaddr**:
+   ```bash
+   cd app
+   node index.js /ip4/127.0.0.1/tcp/9091/p2p/CHECKER_PEER_ID
+   ```
+
+**Note**: Option 1 (connecting without peer ID) is recommended because it uses dynamic peer discovery, which is how libp2p typically works in practice!
+
+#### Interactive Chat Mode
+
+1. **Start checker**:
+   ```bash
+   cd 08-final-checkpoint
+   export CHECKER_KEY_PATH="$(pwd)/../../en/checker/keys/checker.key"
+   CHECKER_KEY_PATH="$CHECKER_KEY_PATH" docker-compose up -d checker
+   sleep 2  # Wait for checker to initialize
+   ```
+
+2. **Run your app** (in another terminal):
+   ```bash
+   cd 08-final-checkpoint/app
+   npm install
+   node index.js /ip4/127.0.0.1/tcp/9091
+   ```
+
+3. **Chat!** Checker responds with: "hey buddy, congrats, you made it till here"
+   - Messages exchange for 65s, then Docker shuts down gracefully
+
+4. **Cleanup** (when done):
+   ```bash
+   docker-compose down
+   ```
 
 ## Your Challenge
 
@@ -184,53 +246,82 @@ Your implementation must:
 
 ### 🎯 **Option 1: Interactive Chat with Checker (RECOMMENDED)**
 
-Here, You'll connect to a live checker that acts as a chat server.
+Connect to the live checker and chat interactively.
 
-#### Step 1: Start the Checker Server
+#### Step 1: Start the Checker
 ```bash
-# From the lesson directory
-docker-compose up -d checker
+cd 08-final-checkpoint
+export CHECKER_KEY_PATH="$(pwd)/../../en/checker/keys/checker.key"
+CHECKER_KEY_PATH="$CHECKER_KEY_PATH" docker-compose up -d checker
+sleep 3  # Wait for checker to initialize
 ```
 
-#### Step 2: Get the Checker Address
+**Verify checker is running:**
 ```bash
-# Check the checker logs to get the listening address
-docker-compose logs checker | grep "Listening on"
+docker-compose ps checker
+# Should show "Up" status
+```
+
+#### Step 2: Get the Checker's Listening Address
+```bash
+# Check checker logs for listening address with peer ID
+docker-compose logs checker | grep "listening,"
+# Or check checker.log file
+cat checker.log | grep "listening,"
 ```
 
 You'll see output like:
 ```
-Listening on 2 address(es)
-  /ip4/127.0.0.1/tcp/9091/p2p/12D3KooWGtY31KWkhJHpWU8T3W4hriEHMCtT5LtkmPD4wNuWikLc
-  /ip4/172.18.0.2/tcp/9091/p2p/12D3KooWGtY31KWkhJHpWU8T3W4hriEHMCtT5LtkmPD4wNuWikLc
+listening,/ip4/127.0.0.1/tcp/9091/p2p/12D3KooWDj4uNjMpUtESkyJa2ZB6DtXg5PKC4pTUptJixE7zo9gB
+listening,/ip4/172.16.16.17/tcp/9091/p2p/12D3KooWDj4uNjMpUtESkyJa2ZB6DtXg5PKC4pTUptJixE7zo9gB
 ```
 
-**Copy the local address** (the one starting with `/ip4/127.0.0.1/tcp/9091/...`)
+**Copy the local address** (the one with `/ip4/127.0.0.1/tcp/9091/p2p/...`)
 
-#### Step 3: Connect Your App to the Checker
+#### Step 3: Connect Your App
 ```bash
 cd app
 npm install
-# Use the checker address you copied
-node index.js /ip4/127.0.0.1/tcp/9091/p2p/12D3KooWGtY31KWkhJHpWU8T3W4hriEHMCtT5LtkmPD4wNuWikLc
+# Use the checker address you copied (with peer ID)
+node index.js /ip4/127.0.0.1/tcp/9091/p2p/12D3KooWDj4uNjMpUtESkyJa2ZB6DtXg5PKC4pTUptJixE7zo9gB
 ```
 
-#### Step 4: Start Chatting! 💬
-Once connected, you'll see:
+**Note:** You need the full multiaddr with peer ID (`/p2p/...`) for this interactive workflow.
+
+#### Step 4: Wait for Mesh Formation
+The app will:
+1. Connect to checker (2s delay)
+2. Wait for Identify protocol (8s)
+3. Check for mesh formation (up to 20s, checks every 2s)
+
+You'll see progress messages:
 ```
+[CHAT] Waiting for Identify protocol(s) that advertise pubsub...
+[CHAT] Check 1/10: 0 peer(s) in mesh
+[CHAT] Check 2/10: 1 peer(s) in mesh
+[CHAT] ✅ Mesh formed with 1 peer(s)!
+```
+
+#### Step 5: Start Chatting! 💬
+Once mesh forms, you'll see:
+```
+============================================================
 ✅ GOSSIPSUB MESH SUCCESSFULLY FORMED!
+============================================================
+[CHAT] Connected to 1 peer(s) in mesh:
+[CHAT]   ✓ 12D3KooW...
+============================================================
 ✅ READY TO CHAT!
-
-[YourNickname]> 
 ```
 
-**Type messages and press Enter to chat with the checker!**
+**Type messages and press Enter!** The checker responds:
+- **First message:** "hey buddy, congrats, you made it till here"
+- **Subsequent:** Heartbeat messages every ~5 seconds
 
-The checker will respond with heartbeat messages and you can have a real conversation!
+Chat for up to **3 minutes (180 seconds)**, then Docker shuts down gracefully.
 
-#### Step 5: Clean Up
+#### Step 6: Clean Up
 ```bash
-# Stop the checker when done
 docker-compose down
 ```
 

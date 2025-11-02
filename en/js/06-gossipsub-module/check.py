@@ -119,7 +119,7 @@ def check_output():
         print("+ Successfully established peer-to-peer connection between nodes")
         
         # Check for coordinated message publishing from both nodes
-        publish_pattern = r"\[NODE[12]\] (Response )?[Mm]essage published successfully"
+        publish_pattern = r"\[NODE[12]\] (?:Response )?[Mm]essage published successfully"
         publish_matches = re.findall(publish_pattern, output)
         
         if len(publish_matches) < 2:
@@ -169,13 +169,9 @@ def main():
 
         print("i " + "=" * 50)
         print("+ GossipSub pub/sub lesson completed successfully!")
-        print("i You have successfully:")
-        print("i - Configured GossipSub service in your libp2p node")
-        print("i - Started a node with proper Peer ID and listening addresses")
-        print("i - Subscribed to a pub/sub topic")
-        print("i - Implemented message publishing functionality")
-        print("i - Built a foundation for decentralized messaging")
-        print("i Ready for Lesson 7: Advanced libp2p features!")
+        print(" ")
+        print("i Ready for Lesson 7: Kademlia DHT!")
+        print(" ")
 
         return True
 

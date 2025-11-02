@@ -53,13 +53,13 @@ def check_output():
             print("✗ checker.log is empty - checker may have failed to start")
             return False
 
-        # A correct solution causes the checker to output a sequence of messages like:
-        # incoming,/ip4/172.16.16.17/tcp/9092,listening
-        # connected,12D3KooWC56YFhhdVtAuz6hGzhVwKu6SyYQ6qh4PMkTJawXVC8rE,('172.16.16.16', 41972)
+        # Unified checker CSV format examples:
+        # incoming,/ip4/172.16.16.17/tcp/9092,/ip4/172.16.16.16/tcp/41972
+        # connected,12D3KooWC56YFhhdVtAuz6hGzhVwKu6SyYQ6qh4PMkTJawXVC8rE,/ip4/172.16.16.16/tcp/41972
         # closed,12D3KooWC56YFhhdVtAuz6hGzhVwKu6SyYQ6qh4PMkTJawXVC8rE
 
         # Check for incoming connection setup
-        incoming_pattern = r"incoming,([/\w\.:-]+),listening"
+        incoming_pattern = r"incoming,([^,]+),([^\n]+)"
         incoming_matches = re.search(incoming_pattern, output)
         if not incoming_matches:
             print("✗ No incoming connection listener setup detected")
@@ -75,23 +75,26 @@ def check_output():
         print(f"✓ Checker listening on {addr_message}")
 
         # Check for connection establishment
-        connected_pattern = r"connected,(12D3KooW[A-Za-z0-9]+),\(['\"]([^'\"]+)['\"],\s*(\d+)\)"
+        connected_pattern = r"connected,(12D3KooW[A-Za-z0-9]+),([^\n]+)"
         connected_matches = re.search(connected_pattern, output)
         if not connected_matches:
             print("✗ No connection established")
-            print(f"ℹ Actual output: {repr(output)}")
+            print(f"ℹ Actual output: {repr(output)}") 
             return False
 
         peer_id = connected_matches.group(1)
-        remote_ip = connected_matches.group(2)
-        remote_port = connected_matches.group(3)
+        remote_addr = connected_matches.group(2).strip()
+        valid_addr, addr_msg = validate_multiaddr(remote_addr)
+        if not valid_addr:
+            print(f"✗ {addr_msg}")
+            return False
         
         valid, peer_id_message = validate_peer_id(peer_id)
         if not valid:
             print(f"✗ {peer_id_message}")
             return False
         
-        print(f"✓ Connection established with {peer_id_message} from {remote_ip}:{remote_port}")
+        print(f"✓ Connection established with {peer_id_message} from {remote_addr}")
 
         # Check for connection closure
         closed_pattern = r"closed,(12D3KooW[A-Za-z0-9]+)"
@@ -131,9 +134,10 @@ def main():
         print("ℹ • Configured TCP transport with Noise security")
         print("ℹ • Established connections with remote peers")
         print("ℹ • Handled connection events properly")
+        print("")
         print("ℹ • Created a foundation for peer-to-peer communication")
         print("ℹ Ready for Lesson 3: Ping Checkpoint!")
-        
+        print("")
         return True
         
     except Exception as e:

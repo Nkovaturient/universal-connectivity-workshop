@@ -55,32 +55,21 @@ def check_output():
             print("x checker.log is empty - application may have failed to start")
             return False
 
-        # Expected sequence in new human-readable format:
-        #   Connection opened:
-        #      Remote peer : <peerId>
-        #      Local addr  : <multiaddr>
-        #      Remote addr : <multiaddr>
-        #      Ping RTT    : <number> ms
-        #   Peer disconnected: <peerId>
-        #   Connection closed: <peerId>
+        # CSV-based sequence from unified checker:
+        #   connected,<peerId>,<remote-multiaddr>
+        #   ping,<peerId>,<rtt> ms
+        #   closed,<peerId>
 
-        # 1. Connection opened section
-        conn_open_pattern = (
-            r"Connection opened:\s*"                                  # header
-            r"(?:.*?\n)?\s*Remote\s+peer\s*:\s*(12D3KooW[\w]+)\s*\n"  # peer id
-            r"\s*Local\s+addr\s*:\s*([^\n]+)\s*\n"                    # local addr
-            r"\s*Remote\s+addr\s*:\s*([^\n]+)"                          # remote addr
-        )
-
-        conn_match = re.search(conn_open_pattern, output, re.MULTILINE)
+        # 1. Connection established
+        conn_open_pattern = r"connected,(12D3KooW[\w]+),([^\n]+)"
+        conn_match = re.search(conn_open_pattern, output)
         if not conn_match:
-            print("x 'Connection opened' section not found or malformed")
+            print("x No connection established")
             print(f"i Actual output: {repr(output)}")
             return False
 
         peerid = conn_match.group(1)
-        local_addr = conn_match.group(2).strip()
-        remote_addr = conn_match.group(3).strip()
+        remote_addr = conn_match.group(2).strip()
 
         # validate peer id and multiaddrs
         valid, peerid_message = validate_peer_id(peerid)
@@ -88,16 +77,16 @@ def check_output():
             print(f"x {peerid_message}")
             return False
 
-        for addr in (local_addr, remote_addr):
-            valid, addr_msg = validate_multiaddr(addr)
-            if not valid:
-                print(f"x {addr_msg}")
-                return False
+        # validate remote addr
+        valid, addr_msg = validate_multiaddr(remote_addr)
+        if not valid:
+            print(f"x {addr_msg}")
+            return False
 
         print(f"v Connection opened with peer {peerid_message}")
 
         # 2. Ping RTT line
-        ping_pattern = r"Ping RTT\s*:\s*(\d+\s*ms)"
+        ping_pattern = r"ping,12D3KooW[\w]+,(\d+\s*ms)"
         ping_match = re.search(ping_pattern, output)
         if not ping_match:
             print("x Ping RTT not reported")
@@ -107,30 +96,17 @@ def check_output():
         ms = ping_match.group(1)
         print(f"v Ping round-trip time reported: {ms}")
 
-        # 3. Peer disconnected line
-        peer_disc_pattern = r"Peer disconnected:\s*(12D3KooW[\w]+)"
+        # 3. Peer disconnected/closed line
+        peer_disc_pattern = r"closed\s*,\s*(12D3KooW[\w]+)"
         disc_match = re.search(peer_disc_pattern, output)
         if not disc_match:
-            print("x 'Peer disconnected' message not found")
+            print("x Connection closed message not found")
             return False
 
         disc_peerid = disc_match.group(1)
         if disc_peerid != peerid:
             print("x Disconnected peer id does not match connected peer id")
             return False
-
-        # 4. Connection closed line
-        closed_pattern = r"Connection closed:\s*(12D3KooW[\w]+)"
-        closed_match = re.search(closed_pattern, output)
-        if not closed_match:
-            print("x 'Connection closed' message not found")
-            return False
-
-        closed_peerid = closed_match.group(1)
-        if closed_peerid != peerid:
-            print("x Closed peer id does not match connected peer id")
-            return False
-
         print(f"v Connection with {peerid_message} closed gracefully")
 
         return True

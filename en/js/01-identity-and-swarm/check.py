@@ -4,7 +4,6 @@ Check script for Lesson 1: Identity and Basic Swarm
 Validates that the student's solution creates a libp2p node with identity.
 """
 
-import subprocess
 import sys
 import os
 import re
@@ -48,7 +47,7 @@ def check_output():
             print("x Missing startup message. Expected: 'Starting Universal Connectivity Application...'")
             print(f"i Actual output: {repr(output)}")
             return False
-        print("v Found startup message")
+        print("v Starting Universal Connectivity Application...")
         
         # Check for peer ID output with exact format
         peer_id_pattern = r"Local peer id: (12D3KooW[A-Za-z0-9]+)"
@@ -86,20 +85,19 @@ def check_output():
 def main():
     """Main check function"""
     print("i Checking Lesson 1: Identity and Basic Swarm")
+    print(" ")
     print("i " + "=" * 50)
     
     try:
-        # Check the output
         if not check_output():
             return False
         
         print("i " + "=" * 50)
-        print("y All checks passed! Your libp2p node is working correctly.")
-        print("i You have successfully:")
-        print("i • Created a libp2p node with a stable Ed25519 identity")
-        print("i • Generated and displayed a valid peer ID")
-        print("i • Set up a basic event loop")
+        print(" ")
+        print("y All checks passed!")
+        print(" ")
         print("Ready for Lesson 2: TCP Transport!")
+        print(" ")
         
         return True
         

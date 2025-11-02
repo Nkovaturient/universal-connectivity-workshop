@@ -79,7 +79,11 @@ fn create_test_message(
     let topic = gossipsub::IdentTopic::new("universal-connectivity");
     let message = UniversalConnectivityMessage {
         from: peer_id.to_string(),
-        message: format!("Hello from {peer_id}! ({counter})"),
+        message: if counter == 1 {
+            "hey buddy, congrats, you made it till here".to_string()
+        } else {
+            format!("Hello from {peer_id}! ({counter})")
+        },
         timestamp: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64,
         message_type: MessageType::Chat as i32,
     };
@@ -251,6 +255,12 @@ async fn main() -> Result<()> {
                         println!("nomorepeers");
                         break 'run Ok(());
                     }
+                }
+                SwarmEvent::NewListenAddr { listener_id, address } => {
+                    // Print listening address with peer ID when it becomes available
+                    let mut full_addr = address.clone();
+                    full_addr.push(Protocol::P2p(local_peer_id));
+                    println!("listening,{}", full_addr);
                 }
                 SwarmEvent::IncomingConnection { local_addr, send_back_addr, .. } => {
                     println!("incoming,{local_addr},{send_back_addr}");

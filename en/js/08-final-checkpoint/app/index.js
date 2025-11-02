@@ -153,13 +153,14 @@ async function connectToRemotePeers(node, remotePeerAddrs) {
     try {
       console.log(`[CONNECTION] Attempting to connect to: ${addrString}`)
       const addr = multiaddr(addrString)
-      await node.dial(addr)
+      const conn = await node.dial(addr)
+      const remotePeerId = conn.remotePeer
       console.log(`[CONNECTION] Successfully connected to: ${addrString}`)
 
       // Ping the remote peer to test connectivity
       try {
         const startTime = Date.now()
-        await node.services.ping.ping(addr)
+        await node.services.ping.ping(remotePeerId)
         const rtt = Date.now() - startTime
         console.log(`[PING] Received a ping response, round trip time: ${rtt} ms`)
       } catch (pingError) {
@@ -210,6 +211,10 @@ async function main() {
     const chatRoom = await ChatRoom.join(node, null) // null = use default nickname
 
     // STEP 2: Connect to remote peers AFTER subscribing
+    // Small delay to ensure checker is ready
+    if (remotePeerAddrs.length > 0) {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
     await connectToRemotePeers(node, remotePeerAddrs)
 
     // CRITICAL: Wait for Identify protocol to complete!

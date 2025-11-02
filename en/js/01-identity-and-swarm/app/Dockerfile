@@ -18,9 +18,8 @@ WORKDIR /app
 
 COPY --from=builder /app /app
 
-ARG TIMEOUT_DURATION=10s
+ARG TIMEOUT_DURATION=20s
 ENV TIMEOUT_DURATION=${TIMEOUT_DURATION}
-ARG LOG_FILE=/app/stdout.log
-ENV LOG_FILE=${LOG_FILE}
+ENV KEEPALIVE_MS=10000
 
-CMD ["/bin/sh", "-c", "timeout ${TIMEOUT_DURATION} node index.js > ${LOG_FILE} 2>&1"]
+CMD ["/bin/sh", "-c", "node index.js > /app/stdout.log 2>&1"]

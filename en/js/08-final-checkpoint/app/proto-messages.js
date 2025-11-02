@@ -83,11 +83,12 @@ export function createBrowserPeerDiscoveryMessage(peerId, multiaddrs) {
 }
 
 /**
- * Decode a Universal Connectivity message
+ * Decode a Universal Connectivity message (handles both JSON and protobuf)
  * @param {Uint8Array} bytes - Encoded message bytes
  * @returns {Object|null} Decoded message object or null if invalid
  */
 export function decodeMessage(bytes) {
+  // Try JSON first (JS-to-JS messages)
   try {
     const json = uint8ArrayToString(bytes)
     const msg = JSON.parse(json)
@@ -95,28 +96,103 @@ export function decodeMessage(bytes) {
     if (msg.type !== undefined) {
       return msg
     }
+  } catch (error) {
+    // Not JSON, try protobuf decoding (from Rust checker)
+  }
+
+  // Try protobuf decoding (from Rust checker)
+  // Protobuf format for UniversalConnectivityMessage:
+  // - field 1 (from): string
+  // - field 2 (message): string  
+  // - field 3 (timestamp): int64
+  // - field 4 (message_type): enum
+  try {
+    let offset = 0
+    let from = null
+    let message = null
     
-    // Fall back to raw string for compatibility with non-JSON messages
-    return {
-      type: MessageType.CHAT,
-      chat: {
-        message: json
+    while (offset < bytes.length) {
+      // Read tag (field number * 8 + wire type)
+      const tag = bytes[offset++]
+      if (tag === 0) break
+      
+      const fieldNum = tag >> 3
+      const wireType = tag & 0x7
+      
+      if (wireType === 2) { // Length-delimited (strings)
+        // Read length (varint)
+        let len = 0
+        let shift = 0
+        while (offset < bytes.length) {
+          const byte = bytes[offset++]
+          len |= (byte & 0x7f) << shift
+          if ((byte & 0x80) === 0) break
+          shift += 7
+        }
+        
+        // Read string value
+        if (offset + len <= bytes.length) {
+          const strBytes = bytes.slice(offset, offset + len)
+          const str = uint8ArrayToString(strBytes)
+          offset += len
+          
+          if (fieldNum === 1) {
+            from = str
+          } else if (fieldNum === 2) {
+            message = str
+          }
+          
+          // If we found the message, return early
+          if (message) {
+            return {
+              type: MessageType.CHAT,
+              chat: {
+                message: message
+              }
+            }
+          }
+        }
+      } else if (wireType === 0) { // Varint (skip)
+        while (offset < bytes.length) {
+          const byte = bytes[offset++]
+          if ((byte & 0x80) === 0) break
+        }
+      } else if (wireType === 1) { // 64-bit (skip 8 bytes)
+        offset += 8
       }
     }
-  } catch (error) {
-    // If JSON parsing fails, treat as raw text message
-    try {
-      const text = uint8ArrayToString(bytes)
+    
+    // If we found the message, return it
+    if (message) {
       return {
         type: MessageType.CHAT,
         chat: {
-          message: text
+          message: message
         }
       }
-    } catch {
-      return null
     }
+  } catch (error) {
+    // Protobuf decode failed
   }
+
+  // Final fallback: try as raw text
+  try {
+    const text = uint8ArrayToString(bytes)
+    // Filter out non-printable characters
+    const cleanText = text.replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+    if (cleanText.length > 0 && cleanText.length < 200) {
+      return {
+        type: MessageType.CHAT,
+        chat: {
+          message: cleanText
+        }
+      }
+    }
+  } catch {
+    // All decode attempts failed
+  }
+  
+  return null
 }
 
 /**

@@ -2,7 +2,7 @@ import { createLibp2p } from 'libp2p'
 import { tcp } from '@libp2p/tcp'
 import { noise } from '@chainsafe/libp2p-noise'
 import { yamux } from '@chainsafe/libp2p-yamux'
-import { gossipsub } from '@chainsafe/libp2p-gossipsub'
+import { gossipsub } from '@libp2p/gossipsub'
 import { identify } from '@libp2p/identify'
 import { createEd25519PeerId } from '@libp2p/peer-id-factory'
 import { multiaddr } from '@multiformats/multiaddr'
@@ -24,13 +24,13 @@ const TOPIC = 'universal-connectivity'
  * @param {number} port - TCP port to listen on (0 for random)
  * @returns {Promise<Libp2p>} Configured libp2p node
  */
-async function createNode(port = 0) {
+async function createNode() {
   const peerId = await createEd25519PeerId()
   
   const node = await createLibp2p({
     peerId,
     addresses: {
-      listen: [`/ip4/0.0.0.0/tcp/${port}`]
+      listen: ['/ip4/0.0.0.0/tcp/0']
     },
     transports: [tcp()],
     connectionEncrypters: [noise()],
@@ -95,7 +95,7 @@ async function demonstrateMultiPeerGossipSub() {
   try {
     // Create and start Node 1 (Bootstrap Peer)
     console.log('\n=== NODE 1 SETUP (Bootstrap Peer) ===')
-    const node1 = await createNode(0)
+    const node1 = await createNode()
     await node1.start()
     
     console.log(`[NODE1] Started with Peer ID: ${node1.peerId.toString()}`)
@@ -108,12 +108,30 @@ async function demonstrateMultiPeerGossipSub() {
     console.log(`[NODE1] Subscribed to topic: ${TOPIC}`)
     
     // Get bootstrap address for other nodes to connect
-    const bootstrapAddr = node1.getMultiaddrs()[0]
-    console.log(`[NODE1] Ready to accept connections at: ${bootstrapAddr.toString()}`)
+    // Find a non-loopback address (prefer 0.0.0.0 or actual IP over 127.0.0.1)
+    const node1Addrs = node1.getMultiaddrs()
+    if (!node1Addrs || node1Addrs.length === 0) {
+      throw new Error('[ERROR] Node1 has no listening addresses available')
+    }
+    
+    let bootstrapAddr = node1Addrs.find(addr => {
+      const addrStr = addr.toString()
+      // Prefer addresses that aren't 127.0.0.1 (loopback)
+      return !addrStr.includes('/ip4/127.0.0.1/')
+    }) || node1Addrs[0] // Fallback to first address if all are loopback
+    
+    if (!bootstrapAddr) {
+      throw new Error('[ERROR] Could not find valid bootstrap address from Node1')
+    }
+    
+    // Convert to string and back to ensure clean multiaddr object
+    const bootstrapAddrStr = bootstrapAddr.toString()
+    console.log(`[NODE1] Ready to accept connections at: ${bootstrapAddrStr}`)
+    const bootstrapAddrForDial = multiaddr(bootstrapAddrStr)
     
     // Create and start Node 2 (Connecting Peer)
     console.log('\n=== NODE 2 SETUP (Connecting Peer) ===')
-    const node2 = await createNode(0)
+    const node2 = await createNode()
     await node2.start()
     
     console.log(`[NODE2] Started with Peer ID: ${node2.peerId.toString()}`)
@@ -128,8 +146,8 @@ async function demonstrateMultiPeerGossipSub() {
     // Establish peer-to-peer connection
     console.log('\n=== PEER CONNECTION ESTABLISHMENT ===')
     try {
-      console.log(`[NODE2] Attempting to connect to NODE1 at: ${bootstrapAddr.toString()}`)
-      await node2.dial(bootstrapAddr)
+      console.log(`[NODE2] Attempting to connect to NODE1 at: ${bootstrapAddrStr}`)
+      await node2.dial(bootstrapAddrForDial)
       console.log(`[NODE2] Successfully connected to NODE1`)
       console.log(`[NODE1] Accepted connection from NODE2`)
     } catch (err) {

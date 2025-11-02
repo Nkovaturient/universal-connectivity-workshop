@@ -1,17 +1,19 @@
-FROM node:20-alpine as build
+FROM node:22-alpine AS builder
+
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm install
+
 COPY . .
 
-FROM node:20-alpine
+FROM node:22-alpine
+
 WORKDIR /app
-COPY --from=build /app /app
 
-# Set environment variables for timeout and log file
-ARG TIMEOUT_DURATION=10s
-ENV TIMEOUT_DURATION=${TIMEOUT_DURATION}
-ARG LOG_FILE=/app/stdout.log
-ENV LOG_FILE=${LOG_FILE}
+COPY --from=builder /app /app
 
+
+# Note: CMD is overridden in docker-compose.yaml for each service
+# Default to relay.js for backward compatibility
 CMD ["node", "relay.js"] 

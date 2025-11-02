@@ -1,15 +1,17 @@
 FROM node:22-alpine
 
+ARG LESSON_PATH
+
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY ${LESSON_PATH}/app/package*.json ./
 
 # Install dependencies
 RUN npm install --production
 
 # Copy application files
-COPY . .
+COPY ${LESSON_PATH}/app/ .
 
 # Set environment variables
 ENV INTERACTIVE=false

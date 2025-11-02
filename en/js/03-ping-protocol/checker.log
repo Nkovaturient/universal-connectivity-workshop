@@ -1,7 +1,6 @@
-Connection opened:
-   Remote peer : 12D3KooWEnwZoS2Jw3aaXPXNcFm6RWzZcdi6dUbA4brP34en5K3j
-   Local addr  : /ip4/127.0.0.1/tcp/38527/p2p/12D3KooWMBaGnf5ggeev9Mu1siELsBwrMdTes3hDpNhbbwxCfbjv
-   Remote addr : /ip4/127.0.0.1/tcp/55814/p2p/12D3KooWEnwZoS2Jw3aaXPXNcFm6RWzZcdi6dUbA4brP34en5K3j
-   • Ping RTT    : 20 ms
-Peer disconnected: 12D3KooWEnwZoS2Jw3aaXPXNcFm6RWzZcdi6dUbA4brP34en5K3j
-Connection closed: 12D3KooWEnwZoS2Jw3aaXPXNcFm6RWzZcdi6dUbA4brP34en5K3j
+listening,/ip4/172.16.16.17/tcp/9092/p2p/12D3KooWDj4uNjMpUtESkyJa2ZB6DtXg5PKC4pTUptJixE7zo9gB
+incoming,/ip4/172.16.16.17/tcp/9092,/ip4/172.16.16.16/tcp/49914
+connected,12D3KooWFEYjXvK99i5eLqruAhQVyYnwfMBxWBJHKm1nEfSMUVSK,/ip4/172.16.16.16/tcp/49914
+identify,12D3KooWFEYjXvK99i5eLqruAhQVyYnwfMBxWBJHKm1nEfSMUVSK,js-libp2p/2.8.11 node/22.21.1
+ping,12D3KooWFEYjXvK99i5eLqruAhQVyYnwfMBxWBJHKm1nEfSMUVSK,1 ms
+closed,12D3KooWFEYjXvK99i5eLqruAhQVyYnwfMBxWBJHKm1nEfSMUVSK

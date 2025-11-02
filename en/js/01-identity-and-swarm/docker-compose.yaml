@@ -5,9 +5,14 @@ services:
       dockerfile: ${LESSON_PATH}/app/Dockerfile
       args:
         LESSON_PATH: ${LESSON_PATH}
+    container_name: workshop-lesson
     stop_grace_period: 1m
     environment:
       - TIMEOUT_DURATION=${TIMEOUT_DURATION:-20s}
-      - REMOTE_PEERS=${REMOTE_PEERS:-/ip4/172.16.16.17/tcp/9092}
     volumes:
       - ${PROJECT_ROOT}/${LESSON_PATH}/stdout.log:/app/stdout.log
+
+networks:
+  default:
+    name: workshop-net
+    external: true
