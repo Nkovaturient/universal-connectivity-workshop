@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Check script for Lesson 1: Identity and Basic Swarm
 Validates that the student's solution creates a libp2p node with identity.
@@ -7,6 +8,10 @@ Validates that the student's solution creates a libp2p node with identity.
 import sys
 import os
 import re
+import io
+
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 def validate_peer_id(peer_id_str):
     """Validate that the peer ID string is a valid libp2p PeerId format"""

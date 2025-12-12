@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Check script for Lesson 3: Ping Checkpoint
 Validates that the student's solution can ping remote peers and measure round-trip times.
@@ -8,6 +9,9 @@ import subprocess
 import sys
 import os
 import re
+import io
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 def validate_peer_id(peer_id_str):
     """Validate that the peer ID string is a valid libp2p PeerId format"""
