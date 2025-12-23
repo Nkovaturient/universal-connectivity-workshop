@@ -23,7 +23,7 @@ services:
       - CLOSE_AFTER_PING=TRUE
     volumes:
       - ./checker.log:/app/checker.log
-      - ${CHECKER_KEY_PATH:-./12D3KooWDj4uNjMpUtESkyJa2ZB6DtXg5PKC4pTUptJixE7zo9gB.key}:/app/key
+      - ${CHECKER_KEY_PATH:-../../checker/keys/checker.key}:/app/key
     networks:
       workshop-net:
         ipv4_address: 172.16.16.17
