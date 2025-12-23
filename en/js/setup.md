@@ -1,126 +1,128 @@
-## 0. **Quick Start Setup**
+# js-libp2p Universal Connectivity Workshop Setup
 
-Run the setup script once before starting lessons:
+Welcome to the js-libp2p Universal Connectivity Workshop! This guide will help you set up your development environment.
+
+## Prerequisites
+
+Before starting, ensure you have the following tools installed:
+
+- **Node.js**: Version 18 LTS or higher
+- **npm**: Version 9 or higher
+- **Docker & Docker Compose**: Required for running the connectivity checks
+- **Git**: For version control
+
+## Environment Setup
+
+### Step 1: Verify Dependencies
+
+Run the dependency checker to make sure your environment is ready:
 
 ```bash
 cd en/js
-./setup-workshop.sh
+python3 deps.py
 ```
 
-This script will:
-- ✅ Create the Docker network (`workshop-net`)
-- ✅ Build the unified checker image
-- ✅ Set up checker keys directory
-- ✅ Configure environment variables
+You should see all green checkmarks (✓) for the required tools.
 
-**Alternative manual setup:**
+### Step 2: Configure Docker Network
 
-If you prefer manual setup:
+The workshop requires a shared Docker network for nodes to communicate. Create it manually:
 
 ```bash
-# Create shared docker network
 docker network create --subnet=172.16.16.0/24 --gateway=172.16.16.1 workshop-net
-
-# Build unified checker image
-cd en/checker
-docker build -t ghcr.io/libp2p/universal-connectivity-workshop/ucw-checker-en:latest .
-
-# Set environment variables (adjust paths as needed)
-export WORKSHOP_ROOT="$(pwd)/../.."
-export PROJECT_ROOT="$WORKSHOP_ROOT"
-export CHECKER_KEY_PATH="$WORKSHOP_ROOT/en/checker/keys/checker.key"
-# lesson 07 only
-export CHECKER1_KEY_PATH="$WORKSHOP_ROOT/en/checker/keys/checker1.key"
-export CHECKER2_KEY_PATH="$WORKSHOP_ROOT/en/checker/keys/checker2.key"
 ```
 
-**Note:** Place checker key files at `en/checker/keys/`. The setup script will attempt to copy them from Rust lessons if available. If these env vars are not set, lessons fall back to local default key filenames.
+If the network already exists, you can proceed. If you suspect issues, remove it (`docker network rm workshop-net`) and recreate it.
 
-## 1. **Prerequisites**
+### Step 3: Prepare the Checker Image
 
-### Tool
-- Node (≥ 18 LTS )            
-- npm (≥ 9 )               
-- TypeScript (optional) (≥ 5.4 )
-- Docker and Docker Compose
-
-## 2. **Project Setup**
-
-This workshop is part of the universal-connectivity-workshop repository. Clone it:
+The workshop uses a unified checker image to validate your lessons. Pull the pre-built image:
 
 ```bash
-git clone <repository-url>
-cd universal-connectivity-workshop
+docker pull ghcr.io/libp2p/universal-connectivity-workshop/ucw-checker-en:latest
 ```
 
-## 3. **Install Dependencies**
+## Workshop Structure
 
-Each lesson has its own `app/package.json`. Dependencies are installed during Docker build, but for local development:
+Each lesson directory (e.g., `en/js/01-identity-and-swarm`) contains:
+
+- `app/`: Your application code (this is where you write code)
+- `lesson.md`: Detailed instructions for the lesson
+- `docker-compose.yaml`: Configuration to run your node and the checker
+- `check.py`: Script to validate your solution
+
+## Running Lessons
+
+The lessons are designed to run in Docker containers. This ensures a consistent environment for network testing.
+
+### Standard Workflow
+
+To run a lesson (e.g., Lesson 1), follow these steps:
+
+1. **Set Environment Variables**
+   The Docker configuration needs to know where the project root is. Run this from the repository root:
+   
+   ```bash
+   export PROJECT_ROOT=$(git rev-parse --show-toplevel)
+   ```
+
+2. **Navigate to the Lesson**
+   
+   ```bash
+   export LESSON_PATH=en/js/01-identity-and-swarm
+   cd $PROJECT_ROOT/$LESSON_PATH
+   ```
+
+3. **Start the Environment**
+   First, create the log file to ensure Docker mounts it correctly, then start the container:
+   
+   ```bash
+   touch stdout.log
+   docker compose up -d --build
+   ```
+
+4. **Run the Checker**
+   This verifies your solution matches the requirements:
+   
+   ```bash
+   python3 check.py
+   ```
+
+5. **Cleanup**
+   Stop the containers and remove volumes to prepare for the next run:
+   
+   ```bash
+   docker compose down -v
+   ```
+
+### Local Development (IntelliSense)
+
+While the code runs in Docker, you'll edit it locally. To get code completion and type hints in your editor:
 
 ```bash
-cd en/js/01-identity-and-swarm/app
+cd app
 npm install
 ```
 
-## 4. **Running Lessons**
+This installs the dependencies locally so your IDE can understand the imports.
 
-### Run All Lessons Sequentially
+## Troubleshooting
 
+**"Variable is not set" errors:**
+If Docker complains about `PROJECT_ROOT` or `LESSON_PATH` not being set, ensure you ran the `export` commands in your current terminal session.
+
+**"Is a directory" error for stdout.log:**
+If you see an error saying `stdout.log` is a directory, it means Docker created a directory instead of a file.
+Fix it by running:
 ```bash
-cd en/js
-./run-all-lessons.sh
+rm -rf stdout.log
+touch stdout.log
 ```
-
-This script runs all 8 lessons in order, validates each one, and cleans up after each lesson.
-
-### Run Individual Lessons
-
-```bash
-# Set environment variables (if not already set)
-export PROJECT_ROOT="$(pwd)/../.."
-export LESSON_PATH="en/js/01-identity-and-swarm"
-
-# Navigate to lesson directory
-cd en/js/01-identity-and-swarm
-
-# Build and start
-docker compose up -d --build
-
-# Run checks
-python3 check.py
-
-# Clean up
-docker compose down -v
-```
-
-### Lesson-Specific Notes
-
-- **Lesson 01**: No checker needed, validates local identity. Requires `PROJECT_ROOT` and `LESSON_PATH` env vars.
-- **Lesson 04**: Circuit relay uses multiple services, check.py needs log file paths:
-  ```bash
-  python3 check.py --relay-log relay.log --listener-log listener.log --dialer-log dialer.log --relay-peerid-json app/peer-id.json
-  ```
-- **Lessons 02, 03, 05, 06, 08**: Use unified checker, check.py reads checker.log (CSV format)
-- **Lesson 07**: Uses two checker instances (checker-01 and checker-02) for Kademlia bootstrap
-
-### Troubleshooting
+Then try `docker compose up` again.
 
 **Network conflicts:**
+If you see errors about IP addresses being in use:
 ```bash
-# Remove old networks if needed
-docker network rm $(docker network ls -q --filter name=workshop) 2>/dev/null || true
-# Recreate
+docker network rm workshop-net
 docker network create --subnet=172.16.16.0/24 --gateway=172.16.16.1 workshop-net
 ```
-
-**Checker image not found:**
-```bash
-# Build locally
-cd en/checker
-docker build -t ghcr.io/libp2p/universal-connectivity-workshop/ucw-checker-en:latest .
-```
-
-**Key files missing:**
-- The setup script tries to copy keys from Rust lessons
-- Or generate them using libp2p key generation tools
-- Or use the default local key paths defined in each lesson's docker-compose.yaml

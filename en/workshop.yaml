@@ -31,3 +31,5 @@ lesson_paths:
     - "js/04-circuit-relay-v2"
     - "js/05-identify-protocol"
     - "js/06-gossipsub-checkpoint"
+    - "js/07-kademlia-checkpoint"
+    - "js/08-final-checkpoint"
